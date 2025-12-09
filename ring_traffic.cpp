@@ -4,273 +4,333 @@
 
 extern HDC hdc;
 
-//start Location::Location 
-Location::Location(int InitX, int InitY) 
+// Location
+Location::Location(int InitX, int InitY) : x(InitX), y(InitY) {}
+int Location::GetX() { return x; }
+int Location::GetY() { return y; }
+void Location::SetX(int NewX) { x = NewX; }
+void Location::SetY(int NewY) { y = NewY; }
+
+// Point
+Point::Point(int InitX, int InitY) : Location(InitX, InitY)
 {
-	x = InitX;
-	y = InitY;
-}//end Location::Location
+    visible = false;
+    radius = 0;
+    borderColor = RGB(255, 255, 255);
+    fillColor = RGB(255, 255, 255);
+}
 
-//start Location::~Location
-Location::~Location() 
+void Point::MoveTo(int NewX, int NewY)
 {
-}//end Location::~Location
+    bool wasVisible = visible;
+    if (wasVisible)
+    {
+        Erase();
+        visible = false;
+    }
 
-//start Location::GetX
-int Location::GetX() 
+    x = NewX;
+    y = NewY;
+
+    if (wasVisible)
+    {
+        Draw();
+        visible = true;
+    }
+}
+
+bool Point::IsVisible() { return visible; }
+void Point::SetVisible(bool isVisible) { visible = isVisible; }
+int Point::GetRadius() { return radius; }
+void Point::SetRadius(int rad) { radius = rad; }
+
+void Point::Erase()
 {
-	return x; 
-}//end Location::GetX
+    if (!visible) return;
 
-//start Location::GetY
-int Location::GetY() 
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
+
+    HPEN pen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+    HBRUSH brush = CreateSolidBrush(RGB(255, 255, 255));
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+
+    Rectangle(hdc, cx - r - 2, cy - r - 2, cx + r + 2, cy + r + 2);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+
+    visible = false;
+}
+
+// Circle (РёРіСЂРѕРІРѕРµ РїРѕР»Рµ)
+Circle::Circle(int InitX, int InitY, int rad) : Point(InitX, InitY)
 {
-	return y; 
-}//end Location::GetY
+    SetRadius(rad);
+    SetBorderColor(RGB(0, 0, 0));
+    lineWidth = 3;
+    SetVisible(true);
+}
 
-//start Location::SetX
-void Location::SetX(int NewX) 
+void Circle::Show()
 {
-	x = NewX; 
-}//end Location::SetX
+    visible = true;
+    Draw();
+}
 
-//start Location::SetY
-void Location::SetY(int NewY) 
-{ 
-	y = NewY; 
-}//end Location::SetY
-
-//start Point::Point
-Point::Point(int InitX, int InitY) : Location(InitX, InitY) 
+void Circle::Hide()
 {
-	visible = false;
-}//end Point::Point
+    if (!visible) return;
 
-//start Point::~Point
-Point::~Point() 
+    HPEN Pen = CreatePen(PS_SOLID, lineWidth + 2, RGB(255, 255, 255));
+    HPEN oldPen = (HPEN)SelectObject(hdc, Pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+
+    Ellipse(hdc, GetX() - GetRadius(), GetY() - GetRadius(),
+        GetX() + GetRadius(), GetY() + GetRadius());
+
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(Pen);
+
+    visible = false;
+}
+
+void Circle::Draw()
 {
-}//end Point::~Point
+    HPEN Pen = CreatePen(PS_SOLID, lineWidth, GetBorderColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, Pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
 
-//start Point::MoveTo
-void Point::MoveTo(int NewX, int NewY) 
+    Ellipse(hdc, GetX() - GetRadius(), GetY() - GetRadius(),
+        GetX() + GetRadius(), GetY() + GetRadius());
+
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(Pen);
+}
+
+// Figure
+Figure::Figure(int InitX, int InitY, int rad) : Point(InitX, InitY)
 {
-	Hide();
-	x = NewX;
-	y = NewY;
-	Show();
-}//end Point::MoveTo
+    SetRadius(rad);
+    lineWidth = 2;
+}
 
-//start Figure::Figure  
-Figure::Figure(int InitX, int InitY) : Point(InitX, InitY) 
+// Enemy
+Enemy::Enemy(int InitX, int InitY) : Figure(InitX, InitY, 3)
 {
-	id = 0;
-}//end Figure::Figure  
+    SetBorderColor(RGB(255, 0, 0));
+    SetFillColor(RGB(255, 0, 0));
+}
 
-//start Figure::~Figure
-Figure::~Figure() 
+void Enemy::Show()
 {
-}//end Figure::~Figure
+    visible = true;
+    Draw();
+}
 
-//start Circle::Circle
-Circle::Circle(int InitX, int InitY, int rad) : Figure(InitX, InitY), radius(rad) 
+void Enemy::Hide()
 {
-	visible = true;
-}//end Circle::Circle
+    Erase();
+}
 
-//start Circle::~Circle
-Circle::~Circle() 
+void Enemy::Move(int centerX, int centerY, int circleRadius)
 {
-}//end Circle::~Circle
+    int newX = GetX();
+    int newY = GetY();
+    int dir = rand() % 8;
 
-//start Circle::Show
-void Circle::Show() 
+    switch (dir)
+    {
+    case 0: newX += 3; break;
+    case 1: newX -= 3; break;
+    case 2: newY += 3; break;
+    case 3: newY -= 3; break;
+    case 4: newX += 3; newY += 3; break;
+    case 5: newX += 3; newY -= 3; break;
+    case 6: newX -= 3; newY += 3; break;
+    case 7: newX -= 3; newY -= 3; break;
+    }
+
+    int dx = newX - centerX;
+    int dy = newY - centerY;
+    int safeR = circleRadius - GetRadius();
+
+    if (dx * dx + dy * dy <= safeR * safeR)
+    {
+        MoveTo(newX, newY);
+    }
+}
+
+void Enemy::Draw()
 {
-	//Черная окружность
-	HPEN PenB = CreatePen(PS_SOLID, 3, RGB(0, 0, 0));
-	SelectObject(hdc, PenB);
-	Arc(hdc, x - radius, y - radius, x + radius, y + radius, x - radius, y, x - radius, y);
-	DeleteObject(PenB);
-}//end Circle::Show
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
 
-//start Circle::Hide
-void Circle::Hide() 
+    HPEN pen = CreatePen(PS_SOLID, GetLineWidth(), GetBorderColor());
+    HBRUSH brush = CreateSolidBrush(GetFillColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+
+    Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+}
+
+// Bonus
+Bonus::Bonus(int InitX, int InitY) : Figure(InitX, InitY, 5)
 {
-	//Стираем окружность, рисуя ее белой
-	HPEN WhitePen = CreatePen(PS_SOLID, 3, RGB(255, 255, 255));
-	SelectObject(hdc, WhitePen);
-	Arc(hdc, x - radius, y - radius, x + radius, y + radius, x - radius, y, x - radius, y);
-	DeleteObject(WhitePen);
-}//end Circle::Hide
+    SetBorderColor(RGB(255, 255, 0));
+    SetFillColor(RGB(255, 255, 0));
+}
 
-//start Hero::Hero 
-Hero::Hero(int InitX, int InitY) : Circle(InitX, InitY, 3) 
+void Bonus::Show()
 {
-	visible = false;
-}//end Hero::Hero
+    visible = true;
+    Draw();
+}
 
-//start Hero::~Hero
-Hero::~Hero() 
+void Bonus::Hide()
 {
-}//end Hero::~Hero
+    Erase();
+}
 
-//start Hero::Show
-void Hero::Show() 
+void Bonus::Draw()
 {
-	visible = true;
-	HPEN Pen = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
-	HBRUSH Brush = CreateSolidBrush(RGB(0, 255, 0));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - radius, y - radius, x + radius, y + radius);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Hero::Show
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
 
-//start Hero::Hide
-void Hero::Hide() 
+    HPEN pen = CreatePen(PS_SOLID, GetLineWidth(), GetBorderColor());
+    HBRUSH brush = CreateSolidBrush(GetFillColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+
+    Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+}
+
+// Hero
+Hero::Hero(int InitX, int InitY, int currentScore) : Figure(InitX, InitY, 5)
 {
-	visible = false;
-	HPEN Pen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-	HBRUSH Brush = CreateSolidBrush(RGB(255, 255, 255));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - radius, y - radius, x + radius, y + radius);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Hero::Hide
+    score = currentScore;
+    visible = true;
+}
 
-//start Collisions::Collisions 
-Collisions::Collisions(int InitX, int InitY) : Point(InitX, InitY), IDraw() 
+void Hero::Show()
 {
-	id = 0;
-}//end Collisions::Collisions
+    visible = true;
+    Draw();
+}
 
-//start Collisions::~Collisions
-Collisions::~Collisions() 
+void Hero::Hide()
 {
-}//end Collisions::~Collisions
+    Erase();
+}
 
-//start Collisions::Show
-void Collisions::Show() 
+void Hero::Draw()
 {
-	visible = true;
-	HPEN Pen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-	HBRUSH Brush = CreateSolidBrush(RGB(255, 0, 0));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - 3, y - 3, x + 3, y + 3);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Collisions::Show
+    DrawShape();
+}
 
-//start Collisions::Hide
-void Collisions::Hide() 
+// CircleHero
+CircleHero::CircleHero(int InitX, int InitY, int currentScore) : Hero(InitX, InitY, currentScore)
 {
-	visible = false;
-	HPEN Pen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-	HBRUSH Brush = CreateSolidBrush(RGB(255, 255, 255));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - 3, y - 3, x + 3, y + 3);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Collisions::Hide
+    SetRadius(5);
+    SetBorderColor(RGB(0, 255, 0));
+    SetFillColor(RGB(0, 255, 0));
+    SetLineWidth(2);
+}
 
-//start Enemy::Enemy
-Enemy::Enemy(int InitX, int InitY) : Collisions(InitX, InitY) 
+void CircleHero::DrawShape()
 {
-	visible=false;
-}//end Enemy::Enemy
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
 
-//start Enemy::~Enemy
-Enemy::~Enemy() 
+    HPEN pen = CreatePen(PS_SOLID, GetLineWidth(), GetBorderColor());
+    HBRUSH brush = CreateSolidBrush(GetFillColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+
+    Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+}
+
+// SquareHero
+SquareHero::SquareHero(int InitX, int InitY, int currentScore) : Hero(InitX, InitY, currentScore)
 {
-}//end Enemy::~Enemy
+    SetRadius(6);
+    SetBorderColor(RGB(255, 165, 0));
+    SetFillColor(RGB(255, 165, 0));
+    SetLineWidth(2);
+}
 
-//start Enemy::Show
-void Enemy::Show() 
+void SquareHero::DrawShape()
 {
-	visible = true;
-	HPEN Pen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-	HBRUSH Brush = CreateSolidBrush(RGB(255, 0, 0));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - 3, y - 3, x + 3, y + 3);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Enemy::Show
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
 
-//start Enemy::MoveEnemy
-void Enemy::MoveEnemy(int centerX, int centerY, int circleRadius) 
+    HPEN pen = CreatePen(PS_SOLID, GetLineWidth(), GetBorderColor());
+    HBRUSH brush = CreateSolidBrush(GetFillColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+
+    Rectangle(hdc, cx - r, cy - r, cx + r, cy + r);
+
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+}
+
+// TriangleHero
+TriangleHero::TriangleHero(int InitX, int InitY, int currentScore) : Hero(InitX, InitY, currentScore)
 {
-	//Генерируем число от 0 до 7
-	int direction = rand() % 8;
-	int newX = x, newY = y;
-	switch (direction) 
-	{
-	case 0: newX += 3; break;  // Вправо
-	case 1: newX -= 3; break;  // Влево
-	case 2: newY += 3; break;  // Вниз
-	case 3: newY -= 3; break;  // Вверх
-	case 4: newX += 3; newY += 3; break;  // Вправо-вниз
-	case 5: newX += 3; newY -= 3; break;  // Вправо-вверх
-	case 6: newX -= 3; newY += 3; break;  // Влево-вниз
-	case 7: newX -= 3; newY -= 3; break;  // Влево-вверх
-	}//end switch
+    SetRadius(7);
+    SetBorderColor(RGB(255, 0, 255));
+    SetFillColor(RGB(255, 0, 255));
+    SetLineWidth(2);
+}
 
-	//Проверка что враг оставался внутри круга
-	int dx = newX - centerX;
-	int dy = newY - centerY;
-	//Проверка на расстояние от центра
-	if (dx * dx + dy * dy <= (circleRadius - 3) * (circleRadius - 3)) MoveTo(newX, newY);
-}//end Enemy::MoveEnemy
-
-//start Bonus::Bonus
-Bonus::Bonus(int InitX, int InitY) : Collisions(InitX, InitY)
+void TriangleHero::DrawShape()
 {
-	visible = false;
-	radius = 5;
-}//end Bonus::Bonus
+    int r = GetRadius();
+    int cx = GetX();
+    int cy = GetY();
 
-//start Bonus::~Bonus
-Bonus::~Bonus() 
-{
-}//end Bonus::~Bonus
+    HPEN pen = CreatePen(PS_SOLID, GetLineWidth(), GetBorderColor());
+    HBRUSH brush = CreateSolidBrush(GetFillColor());
+    HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
 
-//start Bonus::Show 
-void Bonus::Show() 
-{
-	if (visible) {
-		HPEN PenY = CreatePen(PS_SOLID, 2, RGB(255, 255, 0));
-		HBRUSH BrushY = CreateSolidBrush(RGB(255, 255, 0));
-		SelectObject(hdc, PenY);
-		SelectObject(hdc, BrushY);
-		Ellipse(hdc, x - radius, y - radius, x + radius, y + radius);
-		DeleteObject(PenY);
-		DeleteObject(BrushY);
-	}//end if
-}//end Bonus::Show
+    POINT t[3] = {
+        {cx, cy - r},
+        {cx - r, cy + r},
+        {cx + r, cy + r}
+    };
+    Polygon(hdc, t, 3);
 
-//start Bonus::Hide
-void Bonus::Hide() {
-	visible = false;
-	HPEN Pen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-	HBRUSH Brush = CreateSolidBrush(RGB(255, 255, 255));
-	SelectObject(hdc, Pen);
-	SelectObject(hdc, Brush);
-	Ellipse(hdc, x - radius, y - radius, x + radius, y + radius);
-	DeleteObject(Pen);
-	DeleteObject(Brush);
-}//end Bonus::Hide
-
-//start Bonus::isVisible
-bool Bonus::isVisible() 
-{ 
-	return visible; 
-}//end Bonus::isVisible
-
-//start Bonus::SetVisible
-void Bonus::SetVisible(bool v) 
-{
-	visible = v; 
-}//end Bonus::SetVisible
+    SelectObject(hdc, oldPen);
+    SelectObject(hdc, oldBrush);
+    DeleteObject(pen);
+    DeleteObject(brush);
+}
